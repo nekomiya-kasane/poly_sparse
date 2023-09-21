@@ -117,8 +117,7 @@ Multiply two terms.
 """
 Compute the symmetric mod of a term with an integer.
 """
-mod(t::Term, p::Int) = Term(mod(t.coeff, p), t.degree)
-mod(t::Term, p::Int) = Term(mod(t.coeff, p), t.degree)
+mod(t::Term, p::T) where {T<:Core.BuiltinInts} = Term(mod(t.coeff, p), t.degree)
 
 """
 Compute the derivative of a term.
@@ -130,10 +129,10 @@ Divide two terms. Returns a function of an integer.
 """
 function ÷(t1::Term, t2::Term) #\div + [TAB]
     @assert t1.degree ≥ t2.degree
-    f(p::Int)::Term = Term(mod((t1.coeff * int_inverse_mod(t2.coeff, p)), p), t1.degree - t2.degree)
+    f(p::Int128)::Term = Term(mod((t1.coeff * int_inverse_mod(t2.coeff, p)), p), t1.degree - t2.degree)
 end
 
 """
 Integer divide a term by an integer.
 """
-÷(t::Term, n::Int) = t ÷ Term(n, 0)
+÷(t::Term, n::T) where {T<:Core.BuiltinInts} = t ÷ Term(n, 0)
