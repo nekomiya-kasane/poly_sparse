@@ -10,11 +10,11 @@
 """
 Tests Euclidean GCD algorithm for integers.
 """
-function test_euclid_ints(;N::Int = 10^4)
+function test_euclid_ints(;N::Int128 = Int128(10^4))
     Random.seed!(0)
     for _ in 1:N
-        n1 = rand(1:10^6)
-        n2 = rand(1:10^6)
+        n1 = rand(1:10^6)i128
+        n2 = rand(1:10^6)i128
         g = euclid_alg(n1,n2)
         @assert mod(n1,g) == 0 &&  mod(n2,g) == 0
     end
@@ -24,11 +24,11 @@ end
 """
 Tests the extended Euclidean GCD algorithm for integers.
 """
-function test_ext_euclid_ints(;N::Int = 10^4)
+function test_ext_euclid_ints(;N::Int128 = Int128(10^4))
     Random.seed!(0)
     for _ in 1:N
-        n1 = rand(1:10^6)
-        n2 = rand(1:10^6)
+        n1 = rand(1:10^6)i128
+        n2 = rand(1:10^6)i128
         g, s, t = ext_euclid_alg(n1,n2)
         @assert g == s*n1 + t*n2
         @assert mod(n1,g) == 0 &&  mod(n2,g) == 0
@@ -39,10 +39,10 @@ end
 """
 Tests the computation of inverse mod for integers.
 """
-function test_inverse_mod_ints(;prime::Int=101,N::Int=10^4)
+function test_inverse_mod_ints(;prime::Int128=101i128,N::Int128=Int128(10^4))
     Random.seed!(0)
     for _ in 1:N
-        n = rand(1:10^6)
+        n = rand(1:10^6)i128
         if mod(n, prime) == 0
             continue
         end
