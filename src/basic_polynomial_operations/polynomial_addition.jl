@@ -6,10 +6,17 @@
 #############################################################################
 #############################################################################
 
+import Base: +
+import Base: getindex
+
+function Base.getindex(l::MutableLinkedList, idx::Int128)
+    Base.getindex(l, Int(idx))
+end
+
 """
 Add a polynomial and a term.
 """
-function +(p::Polynomial, t::Term)
+function +(p::PolynomialSparse128, t::Term)
     p = deepcopy(p)
     if t.degree > degree(p)
         push!(p, t)
@@ -23,12 +30,12 @@ function +(p::Polynomial, t::Term)
 
     return trim!(p)
 end
-+(t::Term, p::Polynomial) = p + t
++(t::Term, p::PolynomialSparse128) = p + t
 
 """
 Add two polynomials.
 """
-function +(p1::Polynomial, p2::Polynomial)::Polynomial
+function +(p1::PolynomialSparse128, p2::PolynomialSparse128)::PolynomialSparse128
     p = deepcopy(p1)
     for t in p2
         p += t
@@ -39,5 +46,5 @@ end
 """
 Add a polynomial and an integer.
 """
-+(p::Polynomial, n::Int) = p + Term(n,0)
-+(n::Int, p::Polynomial) = p + Term(n,0)
++(p::PolynomialSparse128, n::Int128) = p + Term(n,0)
++(n::Int128, p::PolynomialSparse128) = p + Term(n,0)

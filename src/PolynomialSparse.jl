@@ -7,9 +7,10 @@
 #############################################################################
 
 ####################################
-# Polynomial type and construction #
+# PolynomialSparse128 type and construction #
 ####################################
 using DataStructures, Random
+import Base: push!, mod
 
 include("term.jl")
 
@@ -26,10 +27,10 @@ Assumes the dictionary `dict` does not have the key `key`.
 
 Inserts the new element `value` to the list in its sorted position and updates the dictionary with `key` to point at the node of the linked list.
 """
-function insert_sorted!(lst::MutableLinkedList{V},
-    dict::Dict{K,DataStructures.ListNode{V}},
-    key::K,
-    value::V)::Nothing where {K,V}
+function insert_sorted!(lst::MutableLinkedList{Term},
+    dict::Dict{Int128,DataStructures.ListNode{Term}},
+    key::Int128,
+    value::Int128)::Nothing
 
     #Note that MutableLinkedList is implemented as a doubly pointed linked list 
     #The element lst.node is a root which points at the head and the tail.
@@ -39,17 +40,17 @@ function insert_sorted!(lst::MutableLinkedList{V},
     haskey(dict, key) && error("Key is already in dict")
 
     #If list is empty or the value is greater than end of list, push at end
-    if isempty(lst) || last(lst) <= value
-        push!(lst, value)
+    if isempty(lst) || last(lst).degree <= value
+        push!(lst, Term(value, key))
         dict[key] = lst.node.prev #point to last since value just added to last
         return nothing
     end
 
     #if here then lst is not empty
     current_node = lst.node.next #point at first node
-    i = 1
+
     #iterate to find 
-    while current_node.data <= value
+    while current_node.data.degree <= value
         # if current_node == lst.node.prev #if got to last node
         #     push!(lst, value) #just push at end
         #     dict[key] = lst.node.prev #point to last
@@ -59,7 +60,7 @@ function insert_sorted!(lst::MutableLinkedList{V},
     end
 
     #if here then current_node points at right place
-    new_node = DataStructures.ListNode{V}(value) #create a new node
+    new_node = DataStructures.ListNode{Term}(Term(key,value)) #create a new node
 
     #tie new_node between current_node.prev and current_node
     new_node.prev = current_node.prev
@@ -79,9 +80,9 @@ end
 """
 Assumes the dictionary `dict` has the key `key`. and it is pointing at the linked list.
 """
-function delete_element!(lst::MutableLinkedList{V},
-    dict::Dict{K,DataStructures.ListNode{V}},
-    key::K)::Nothing where {K,V}
+function delete_element!(lst::MutableLinkedList{Term},
+    dict::Dict{Int128,DataStructures.ListNode{Term}},
+    key::Int128)::Nothing
 
     haskey(dict, key) || error("Key is not in dict")
 
@@ -98,17 +99,20 @@ end
 """
 Returns the value associated with the key `key` or `nothing` if not in list.
 """
-get_element(lst::MutableLinkedList{V},
-    dict::Dict{K,DataStructures.ListNode{V}},
-    key::K) where {K,V} = haskey(dict, key) ? dict[key].data : nothing
+function get_element(lst::MutableLinkedList{Term},
+    dict::Dict{Int128,DataStructures.ListNode{Term}},
+    key::Int128)
+
+    haskey(dict, key) ? dict[key].data : nothing
+end
 
 """
 Returns the element following the element associated with the key `key` or `nothing` if there is no next element.
 Throws an error if `key` is not available.
 """
-function get_next_element(lst::MutableLinkedList{V},
-    dict::Dict{K,DataStructures.ListNode{V}},
-    key::K) where {K,V}
+function get_next_element(lst::MutableLinkedList{Term},
+    dict::Dict{Int128,DataStructures.ListNode{Term}},
+    key::Int128)
 
     haskey(dict, key) || error("Key is not in dict")
     node = dict[key]
@@ -119,13 +123,13 @@ end
 ####################################################################
 
 #####################################
-# Polynomial Definition and Methods #
+# PolynomialSparse128 Definition and Methods #
 #####################################
 
 """
-A Polynomial type - designed to be for polynomials with integer coefficients.
+A PolynomialSparse128 type - designed to be for polynomials with integer coefficients.
 """
-struct Polynomial
+mutable struct PolynomialSparse128
 
     #A linked-list that represents a series of terms
     #Terms are assumed to be in order with first term having degree 0, second degree 1, and so fourth
@@ -136,56 +140,64 @@ struct Polynomial
 
     #A Dictionary that maps the degree of a term to the corresponding node(represents a term) 
     # in the linked-list
-    degreeDict::Dict{Int,DataStructures.ListNode{Term}}
+    degreeDict::Dict{Int128,DataStructures.ListNode{Term}}
 
     #Inner constructor of 0 polynomial(`terms` is an empty linked-list in this case)
     #call overloaded constructor
-    Polynomial() = Polynomial([zero(Term)])
+    function PolynomialSparse128(T::MutableLinkedList{Term}=MutableLinkedList{Term}(),
+        D::Dict{Int128,DataStructures.ListNode{Term}}=Dict{Int128,DataStructures.ListNode{Term}}())
+        new(T, D)
+    end
+
+    function PolynomialSparse128(t::Term)
+        PolynomialSparse128([t])
+    end
+
+    function PolynomialSparse128(pairs::Vector{Tuple{T,P}}) where {T<:Integer,P<:Integer}
+        this = PolynomialSparse128()
+        for pair in pairs
+            insert_sorted!(this.terms, this.degreeDict, Int128(pair[2]), Int128(pair[1]))
+        end
+        this
+    end
 
     #Inner constructor of polynomial based on arbitrary list of terms
-    function Polynomial(vt::Vector{Term})
+    function PolynomialSparse128(vt::Vector{Term})
+        this = PolynomialSparse128()
         #Filter the vector so that there is not more than a single zero term
-        vt = filter((t) -> !iszero(t), vt)
-        if isempty(vt)
-            vt = [zero(Term)]
-        end
-
-        l = MutableLinkedList{Term}()
-        d = Dict{Int,DataStructures.ListNode{Term}}()
-
+        vt = sort!(filter(t::Term -> !iszero(t), vt), by=t::Term -> t.degree)
         #update `terms` and `degreeDict` based on the terms in `vt`
         for t in vt
             # TODO Why t.degree typed Int64? however it is defined as Int in `Term`
             # @show (typeof(l), typeof(d), typeof(t.degree), typeof(t))
 
             #call helper function
-            insert_sorted!(l, d, t.degree, t)
+            insert_sorted!(this.terms, this.degreeDict, t.degree, t.coeff)
         end
-        return new(l, d)
+
+        this
     end
 
     #Inner constructor of polynomial based on arbitrary list of terms
-    function Polynomial(lst::MutableLinkedList{Term})
+    function PolynomialSparse128(lst::MutableLinkedList{Term})
         #populate degreeDict
-        l = MutableLinkedList{Term}()
-        d = Dict{Int,DataStructures.ListNode{Term}}()
-        for node in lst
-            # TODO how to convert `Term` into `ListNode{Term}`
-            # `l` and `lst` ocuppied double memory
-            insert_sorted!(l, d, node.degree, node)
+        l = copy(lst)
+        d = Dict{Int128,DataStructures.ListNode{Term}}()
+        for v in l
+            d[v.degree] = v.coeff
         end
         return new(l, d)
     end
 end
 
 """
-This function maintains the invariant of the Polynomial type so that there are no zero terms beyond the highest
+This function maintains the invariant of the PolynomialSparse128 type so that there are no zero terms beyond the highest
 non-zero term.
 """
-function trim!(p::Polynomial)::Polynomial
+function trim!(p::PolynomialSparse128)::PolynomialSparse128
     #how many terms
     n = length(p.terms)
-    if n <= 1
+    if n == 0
         return p
     end
 
@@ -200,41 +212,41 @@ end
 """
 Construct a polynomial with a single term.
 """
-Polynomial(t::Term) = Polynomial([t])
+
 
 """
 Construct a polynomial of the form x^p-x.
 """
-cyclotonic_polynomial(p::Int) = Polynomial([Term(1, p), Term(-1, 0)])
+cyclotonic_polynomial(p::Int128) = PolynomialSparse128([Term(1, p), Term(-1, 0)])
 
 
 """
 Construct a polynomial of the form x-n.
 """
-linear_monic_polynomial(n::Int) = Polynomial([Term(1, 1), Term(-n, 0)])
+linear_monic_polynomial(n::Int128) = PolynomialSparse128([Term(1, 1), Term(-n, 0)])
 
 """
 Construct a polynomial of the form x.
 """
-x_poly() = Polynomial(Term(1, 1))
+x_poly() = PolynomialSparse128(Term(1i128, 1i128))
 
 """
 Creates the zero polynomial.
 """
-zero(::Type{Polynomial})::Polynomial = Polynomial()
+zero(::Type{PolynomialSparse128})::PolynomialSparse128 = PolynomialSparse128()
 
 """
 Creates the unit polynomial.
 """
-one(::Type{Polynomial})::Polynomial = Polynomial(one(Term))
-one(p::Polynomial) = one(typeof(p))
+one(::Type{PolynomialSparse128})::PolynomialSparse128 = PolynomialSparse128(one())
+one(p::PolynomialSparse128) = one(typeof(p))
 
 """
 Generates a random polynomial.
 """
-function rand(::Type{Polynomial};
-    degree::Int=-1,
-    terms::Int=-1,
+function rand(::Type{PolynomialSparse128};
+    degree::Int128=-1i128,
+    terms::Int128=-1i128,
     max_coeff::Int=100,
     mean_degree::Float64=5.0,
     prob_term::Float64=0.7,
@@ -247,7 +259,7 @@ function rand(::Type{Polynomial};
         degrees = vcat(sort(sample(0:_degree-1, _terms, replace=false)), _degree)
         coeffs = rand(1:max_coeff, _terms + 1)
         monic && (coeffs[end] = 1)
-        p = Polynomial([Term(coeffs[i], degrees[i]) for i in 1:length(degrees)])
+        p = PolynomialSparse128([Term(Int128(coeffs[i]), Int128(degrees[i])) for i in 1:length(degrees)])
         condition(p) && return p
     end
 end
@@ -262,7 +274,7 @@ Show a polynomial.
 const lowest_to_highest_default = false  #if lowest_to_highest is not set then it is false.
 global lowest_to_highest            #set a global variable for lowest_to_highest.
 
-function show(io::IO, p::Polynomial)
+function show(io::IO, p::PolynomialSparse128)
     if iszero(p)
         print(io, "0")
         return
@@ -321,7 +333,7 @@ function iterateLinkedList(lst::MutableLinkedList{T}, state=lst.node.next) where
     state == lst.node.prev ? nothing : (lst.node.data, lst.node.next)
 end
 
-iterate(p::Polynomial, state=1) = iterateLinkedList(p.terms, p.terms.node.next)
+iterate(p::PolynomialSparse128, state=1) = iterateLinkedList(p.terms, p.terms.node.next)
 
 
 ##############################
@@ -331,32 +343,32 @@ iterate(p::Polynomial, state=1) = iterateLinkedList(p.terms, p.terms.node.next)
 """
 The number of terms of the polynomial.
 """
-length(p::Polynomial) = length(p.terms)
+length(p::PolynomialSparse128) = length(p.terms)
 
 """
 The leading term of the polynomial.
 """
-leading(p::Polynomial)::Term = isempty(p.terms) ? zero(Term) : last(p.terms)
+leading(p::PolynomialSparse128)::Term = isempty(p.terms) ? zero(Term) : last(p.terms)
 
 """
 Returns the coefficients of the polynomial.
 """
-coeffs(p::Polynomial)::Vector{Int} = [t.coeff for t in p]
+coeffs(p::PolynomialSparse128)::Vector{Int128} = [t.coeff for t in p]
 
 """
 The degree of the polynomial.
 """
-degree(p::Polynomial)::Int = leading(p).degree
+degree(p::PolynomialSparse128)::Int128 = leading(p).degree
 
 """
 The content of the polynomial is the GCD of its coefficients.
 """
-content(p::Polynomial)::Int = euclid_alg(coeffs(p))
+content(p::PolynomialSparse128)::Int128 = euclid_alg(coeffs(p))
 
 """
 Evaluate the polynomial at a point `x`.
 """
-evaluate(f::Polynomial, x::T) where {T<:Number} = sum(evaluate(t, x) for t in f)
+evaluate(f::PolynomialSparse128, x::T) where {T<:Number} = sum(evaluate(t, x) for t in f)
 
 ################################
 # Pushing and popping of terms #
@@ -367,21 +379,21 @@ Push a new term into the polynomial.
 """
 #Note that ideally this would throw and 
 # TODO handle if pushing another term of degree that is already in the polynomial
-function push!(p::Polynomial, t::Term)
+function push!(p::PolynomialSparse128 , t::Term)
     # if t.degree <= degree(p)
     #     p.terms[t.degree + 1] = t
     # else
     #     append!(p.terms, zeros(Term, t.degree - degree(p)-1))
     #     push!(p.terms, t)
     # end
-    sorted_insert!(p.terms, p.degreeDict, t.degree, t)
+    sorted_insert!(p.terms, p.degreeDict, t.degree, t.coeff)
     return p
 end
 
 """
 Pop the leading term out of the polynomial. When polynomial is 0, keep popping out 0.
 """
-function pop!(p::Polynomial)::Term
+function pop!(p::PolynomialSparse128)::Term
     popped_term = pop!(p.terms) #last element popped is leading coefficient
 
     while !isempty(p.terms) && iszero(last(p.terms))
@@ -398,7 +410,7 @@ end
 """
 Check if the polynomial is zero.
 """
-iszero(p::Polynomial)::Bool = p.terms == [Term(0, 0)]
+iszero(p::PolynomialSparse128)::Bool = p.terms == [Term(0i128, 0i128)]
 
 #################################################################
 # Transformation of the polynomial to create another polynomial #
@@ -407,13 +419,13 @@ iszero(p::Polynomial)::Bool = p.terms == [Term(0, 0)]
 """
 The negative of a polynomial.
 """
--(p::Polynomial) = Polynomial(map((pt) -> -pt, p.terms))
+-(p::PolynomialSparse128) = PolynomialSparse128(map((pt) -> -pt, p.terms))
 
 """
 Create a new polynomial which is the derivative of the polynomial.
 """
-function derivative(p::Polynomial)::Polynomial
-    der_p = Polynomial()
+function derivative(p::PolynomialSparse128)::PolynomialSparse128
+    der_p = PolynomialSparse128()
     for term in p
         der_term = derivative(term)
         !iszero(der_term) && push!(der_p, der_term)
@@ -424,13 +436,13 @@ end
 """
 The prim part (multiply a polynomial by the inverse of its content).
 """
-prim_part(p::Polynomial) = p ÷ content(p)
+prim_part(p::PolynomialSparse128) = p ÷ content(p)
 
 
 """
 A square free polynomial.
 """
-square_free(p::Polynomial, prime::Int)::Polynomial = (p ÷ gcd(p, derivative(p), prime))(prime)
+square_free(p::PolynomialSparse128, prime::Int)::PolynomialSparse128 = (p ÷ gcd(p, derivative(p), prime))(prime)
 
 #################################
 # Queries about two polynomials #
@@ -439,14 +451,14 @@ square_free(p::Polynomial, prime::Int)::Polynomial = (p ÷ gcd(p, derivative(p),
 """
 Check if two polynomials are the same
 """
-==(p1::Polynomial, p2::Polynomial)::Bool = p1.terms == p2.terms
+==(p1::PolynomialSparse128, p2::PolynomialSparse128)::Bool = p1.terms == p2.terms
 
 
 """
 Check if a polynomial is equal to 0.
 """
 #Note that in principle there is a problem here. E.g The polynomial 3 will return true to equalling the integer 2.
-==(p::Polynomial, n::T) where {T<:Real} = iszero(p) == iszero(n)
+==(p::PolynomialSparse128, n::T) where {T<:Real} = iszero(p) == iszero(n)
 
 ##################################################################
 # Operations with two objects where at least one is a polynomial #
@@ -455,39 +467,39 @@ Check if a polynomial is equal to 0.
 """
 Subtraction of two polynomials.
 """
--(p1::Polynomial, p2::Polynomial)::Polynomial = p1 + (-p2)
+-(p1::PolynomialSparse128, p2::PolynomialSparse128)::PolynomialSparse128 = p1 + (-p2)
 
 
 """
 Multiplication of polynomial and term.
 """
-*(t::Term, p1::Polynomial)::Polynomial = iszero(t) ? Polynomial() : Polynomial(map((pt) -> t * pt, p1.terms))
-*(p1::Polynomial, t::Term)::Polynomial = t * p1
+*(t::Term, p1::PolynomialSparse128)::PolynomialSparse128 = iszero(t) ? PolynomialSparse128() : PolynomialSparse128(map((pt) -> t * pt, p1.terms))
+*(p1::PolynomialSparse128, t::Term)::PolynomialSparse128 = t * p1
 
 """
 Multiplication of polynomial and an integer.
 """
-*(n::Int, p::Polynomial)::Polynomial = p * Term(n, 0)
-*(p::Polynomial, n::Int)::Polynomial = n * p
+*(n::Int, p::PolynomialSparse128)::PolynomialSparse128 = p * Term(n, 0)
+*(p::PolynomialSparse128, n::Int)::PolynomialSparse128 = n * p
 
 """
 Integer division of a polynomial by an integer.
 
 Warning this may not make sense if n does not divide all the coefficients of p.
 """
-÷(p::Polynomial, n::Int) = (prime) -> Polynomial(map((pt) -> ((pt ÷ n)(prime)), p.terms))
+÷(p::PolynomialSparse128, n::Int128) = (prime) -> PolynomialSparse128(map((pt) -> ((pt ÷ n)(prime)), p.terms))
 
 """
 Take the mod of a polynomial with an integer.
 """
-function mod(f::Polynomial, p::Int)::Polynomial
+function mod(f::PolynomialSparse128, p::Int128)::PolynomialSparse128
     f_out = deepcopy(f)
     for i in 1:length(f_out.terms)
         f_out.terms[i] = mod(f_out.terms[i], p)
     end
     return trim!(f_out)
 
-    # p_out = Polynomial()
+    # p_out = PolynomialSparse128()
     # for t in f
     #     new_term = mod(t, p)
     #     @show new_term
@@ -499,7 +511,7 @@ end
 """
 Power of a polynomial mod prime.
 """
-function pow_mod(p::Polynomial, n::Int, prime::Int)
+function pow_mod(p::PolynomialSparse128, n::Int, prime::Int128)
     n < 0 && error("No negative power")
     out = one(p)
     for _ in 1:n

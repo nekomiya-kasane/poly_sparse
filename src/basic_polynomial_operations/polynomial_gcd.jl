@@ -6,14 +6,16 @@
 #############################################################################
 #############################################################################
 
+import Base: gcd
+
 """
 The extended euclid algorithm for polynomials modulo prime.
 """
-function extended_euclid_alg(a::Polynomial, b::Polynomial, prime::Int)
+function extended_euclid_alg(a::PolynomialSparse128, b::PolynomialSparse128, prime::Int128)
     old_r, r = mod(a, prime), mod(b, prime)
-    old_s, s = one(Polynomial), zero(Polynomial)
-    old_t, t = zero(Polynomial), one(Polynomial)
-
+    old_s, s = one(PolynomialSparse128), zero(PolynomialSparse128)
+    old_t, t = zero(PolynomialSparse128), one(PolynomialSparse128)
+``
     while !iszero(mod(r,prime))
         q = first(divide(old_r, r)(prime))
         old_r, r = r, mod(old_r - q*r, prime)
@@ -29,4 +31,4 @@ end
 """
 The GCD of two polynomials modulo prime.
 """
-gcd(a::Polynomial, b::Polynomial, prime::Int) = extended_euclid_alg(a,b,prime) |> first
+gcd(a::PolynomialSparse128, b::PolynomialSparse128, prime::Int128) = extended_euclid_alg(a,b,prime) |> first

@@ -6,11 +6,13 @@
 #############################################################################
 #############################################################################
 
+import Base: *, ^
+
 """
 Multiply two polynomials.
 """
-function *(p1::Polynomial, p2::Polynomial)::Polynomial
-    p_out = Polynomial()
+function *(p1::PolynomialSparse128, p2::PolynomialSparse128)::PolynomialSparse128
+    p_out = PolynomialSparse128()
     for t1 in p1.terms
         for t2 in p2.terms
             new_summand = t1 * t2
@@ -19,7 +21,7 @@ function *(p1::Polynomial, p2::Polynomial)::Polynomial
     end
 
     # for t in p1
-    #     new_summand = (t * p2)  # if Polynomial were iterable!
+    #     new_summand = (t * p2)  # if PolynomialSparse128 were iterable!
     #     p_out = p_out + new_summand
     #     end
     return p_out
@@ -28,7 +30,7 @@ end
 """
 Power of a polynomial.
 """
-function ^(p::Polynomial, n::Int)
+function ^(p::PolynomialSparse128, n::Int128)
     n < 0 && error("No negative power")
     out = one(p)
 

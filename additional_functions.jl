@@ -11,7 +11,7 @@
 """
 This functions use for ennahnce pretty printing with Unicode  
 """
-function int_to_unicode(n::Int)::String
+function int_to_unicode(n::T)::String where {T<:Integer}
     # Dictionary mapping integers to their superscript representations
     unicodeSusperscript = Dict(
         0 => '⁰',
@@ -27,5 +27,5 @@ function int_to_unicode(n::Int)::String
     )
     
     str = string(n)
-    return join([unicodeSusperscript[parse(Int, char)] for char in str])
+    return join([unicodeSusperscript[parse(T, char)] for char in str])
 end

@@ -10,6 +10,8 @@
 # Term type and construction #
 ##############################
 
+import Base: +, -, mod
+
 struct i128 end
 (*)(n, ::Type{i128}) = Int128(n)
 
@@ -19,9 +21,9 @@ A term.
 struct Term  #structs are immutable by default
     coeff::Int128
     degree::Int128
-    function Term(coeff::Int128, degree::Int128)
+    function Term(coeff::T, degree::T) where {T<:Integer}
         degree < 0 && error("Degree must be non-negative")
-        coeff != 0 ? new(coeff, degree) : new(coeff, 0)
+        coeff != 0 ? new(Int128(coeff), Int128(degree)) : new(Int128(coeff), 0i128)
     end
 end
 
@@ -29,12 +31,15 @@ end
 Creates the zero term.
 > Nekomiya: why takes 1 argument? no need for arguments to create a default instance.
 """
-zero::Term = Term(0i128, 0i128)
-
+function zero(Term)::Term
+    Term(0i128, 0i128)
+end
 """
 Creates the unit term.
 """
-one::Term = Term(1i128, 1i128)
+function one(Term)::Term
+    Term(1i128, 0i128)
+end
 
 ###########
 # Display #
@@ -75,7 +80,7 @@ end
 """
 Check if a term is 0.
 """
-iszero(t::Term)::Bool = iszero(t.coeff)
+iszero(t::Term)::Bool = Base.iszero(t.coeff)
 
 """
 Compare two terms.
@@ -117,7 +122,7 @@ Multiply two terms.
 """
 Compute the symmetric mod of a term with an integer.
 """
-mod(t::Term, p::T) where {T<:Core.BuiltinInts} = Term(mod(t.coeff, p), t.degree)
+mod(t::Term, p::T) where {T<:Integer} = Term(mod(t.coeff, p), t.degree)
 
 """
 Compute the derivative of a term.

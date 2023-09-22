@@ -6,11 +6,10 @@
 #############################################################################
 #############################################################################
 
-
 """
 Test factorization of polynomials.
 """
-function factor_test_poly(;N::Int = 10, seed::Int = 0, primes::Vector{Int} = [5,17,19])
+function factor_test_poly(;N::Int128 = 10, seed::Int128 = 0, primes::Vector{Int128} = [5,17,19])
     Random.seed!(seed)
     for prime in primes
         print("\ndoing prime = $prime \t")

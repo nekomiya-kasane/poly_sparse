@@ -21,7 +21,7 @@ end
 # Demonstrate iteration #
 #########################
 
-l = MutableLinkedList{Int}([10,25,35]...)
+l = MutableLinkedList{Int128}([10,25,35]...)
 
 for d in l
     print(d, "\t")
